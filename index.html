@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emsity Timesheet</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <img src="logo.png" alt="Emsity" class="header-logo" onerror="this.style.display='none'">
+    <h1 class="header-title">Timesheet</h1>
+    <div class="header-spacer"></div>
+    <nav class="header-nav">
+      <button class="btn btn-secondary btn-small" onclick="app.showImport()">Import</button>
+      <button class="btn btn-secondary btn-small" onclick="app.showSettings()">Settings</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Client Selector View -->
+    <div id="view-clients">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Clients</h2>
+        <button class="btn btn-primary" onclick="app.showAddClient()">+ Add Client</button>
+      </div>
+      <div id="client-grid" class="client-grid">
+        <!-- Client cards rendered here -->
+      </div>
+    </div>
+
+    <!-- Timesheet View -->
+    <div id="view-timesheet" class="hidden">
+      <div class="view-header">
+        <button class="back-btn" onclick="app.showClients()">&larr;</button>
+        <h2 class="view-title" id="timesheet-client-name">Client Name</h2>
+        <select class="month-selector" id="month-selector" onchange="app.changeMonth()">
+          <!-- Month options rendered here -->
+        </select>
+      </div>
+
+      <button class="btn btn-primary" onclick="app.showAddEntry()">+ New Entry</button>
+
+      <div class="tabs mt-4">
+        <button class="tab active" onclick="app.showTab('entries')">Entries</button>
+        <button class="tab" onclick="app.showTab('summary')">Summary</button>
+      </div>
+
+      <!-- Entries Tab -->
+      <div id="tab-entries">
+        <div id="entry-list" class="entry-list">
+          <!-- Entries rendered here -->
+        </div>
+      </div>
+
+      <!-- Summary Tab -->
+      <div id="tab-summary" class="hidden">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="amount">Hours</th>
+              <th class="amount">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="summary-body">
+            <!-- Summary rows rendered here -->
+          </tbody>
+        </table>
+        <div class="summary-actions mt-4">
+          <button class="btn btn-primary" onclick="app.exportCSV()">Export CSV</button>
+          <button class="btn btn-primary" onclick="app.exportPDF()">Export PDF</button>
+        </div>
+      </div>
+
+      <div class="summary-footer">
+        <div class="summary-total">
+          <span id="month-total-label">January 2026 Total:</span>
+          <strong id="month-total-value">0h = £0.00</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="view-settings" class="hidden">
+      <div class="view-header">
+        <button class="back-btn" onclick="app.showClients()">&larr;</button>
+        <h2 class="view-title">Settings</h2>
+      </div>
+
+      <div class="settings-section">
+        <h3>Mileage Rate</h3>
+        <div class="form-group">
+          <label class="form-label">Rate per mile (£)</label>
+          <input type="number" class="form-input" id="settings-mileage-rate" step="0.01" value="0.45" onchange="app.saveMileageRate()">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Data Location</h3>
+        <p style="color: var(--text-light); font-size: 14px;">
+          E:\Emsity OneDrive\OneDrive - emsity.com\Emsity\Accounts\Working Records\
+        </p>
+      </div>
+    </div>
+
+    <!-- Import View -->
+    <div id="view-import" class="hidden">
+      <div class="view-header">
+        <button class="back-btn" onclick="app.showClients()">&larr;</button>
+        <h2 class="view-title">Import Excel Files</h2>
+      </div>
+
+      <div class="settings-section">
+        <h3>Available Files</h3>
+        <div id="import-file-list">
+          <!-- Excel files listed here -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Entry Modal -->
+  <div id="modal-entry" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="entry-modal-title">New Entry</span>
+        <button class="modal-close" onclick="app.closeEntryModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="entry-id">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-input" id="entry-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hours</label>
+            <input type="number" class="form-input" id="entry-hours" step="0.5" min="0" placeholder="e.g. 2.5">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Activity</label>
+          <select class="form-select" id="entry-activity">
+            <!-- Activities rendered here -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea class="form-textarea" id="entry-notes" placeholder="Optional notes..."></textarea>
+        </div>
+
+        <button class="collapsible-toggle" onclick="app.toggleExtras()">
+          <span id="extras-toggle-text">+ Add travel/expenses</span>
+        </button>
+
+        <div id="entry-extras" class="collapsible-content hidden">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Travel Hours</label>
+              <input type="number" class="form-input" id="entry-travel-hours" step="0.5" min="0" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Miles</label>
+              <input type="number" class="form-input" id="entry-miles" min="0" placeholder="0" oninput="app.updateMileageValue()">
+              <small id="mileage-value" style="color: var(--text-light);">= £0.00</small>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expense (£)</label>
+            <input type="number" class="form-input" id="entry-expense" step="0.01" min="0" placeholder="0.00">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeEntryModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveEntry()">Save Entry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Modal -->
+  <div id="modal-client" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="client-modal-title">New Client</span>
+        <button class="modal-close" onclick="app.closeClientModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="client-id">
+
+        <div class="form-group">
+          <label class="form-label">Client Name</label>
+          <input type="text" class="form-input" id="client-name" placeholder="e.g. Acme Corp">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Hourly Rate (£)</label>
+            <input type="number" class="form-input" id="client-rate" step="0.50" min="0" placeholder="65.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">VAT Applicable</label>
+            <select class="form-select" id="client-vat">
+              <option value="false">No VAT</option>
+              <option value="true">Add 20% VAT</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Activities</label>
+          <div id="client-activities" class="activity-list">
+            <!-- Activity tags rendered here -->
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <input type="text" class="form-input" id="new-activity" placeholder="New activity...">
+            <button class="btn btn-secondary" onclick="app.addActivity()">Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeClientModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="app.saveClient()">Save Client</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

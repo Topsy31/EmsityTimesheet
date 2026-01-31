@@ -1,0 +1,37 @@
+{
+  "name": "emsity-timesheet",
+  "version": "1.0.0",
+  "description": "Emsity Timesheet - Time tracking and invoicing",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis"
+  },
+  "author": "Emsity",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "jspdf": "^2.5.1",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.emsity.timesheet",
+    "productName": "Emsity Timesheet",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "logo.png"
+    },
+    "portable": {
+      "artifactName": "Timesheet.exe"
+    }
+  }
+}
