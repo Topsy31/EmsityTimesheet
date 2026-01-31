@@ -52,6 +52,7 @@
 
       <div class="tabs mt-4">
         <button class="tab active" onclick="app.showTab('entries')">Entries</button>
+        <button class="tab" onclick="app.showTab('calendar')">Calendar</button>
         <button class="tab" onclick="app.showTab('breakdown')">Breakdown</button>
         <button class="tab" onclick="app.showTab('summary')">Summary</button>
       </div>
@@ -60,6 +61,24 @@
       <div id="tab-entries">
         <div id="entry-list" class="entry-list">
           <!-- Entries rendered here -->
+        </div>
+      </div>
+
+      <!-- Calendar Tab -->
+      <div id="tab-calendar" class="hidden">
+        <div class="calendar-grid">
+          <div class="calendar-header">
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+            <span>Sun</span>
+          </div>
+          <div id="calendar-body" class="calendar-body">
+            <!-- Calendar days rendered here -->
+          </div>
         </div>
       </div>
 

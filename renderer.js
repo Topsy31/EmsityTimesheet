@@ -84,6 +84,7 @@ const app = {
 
     document.getElementById('timesheet-client-name').textContent = this.currentClient.name;
     this.renderEntries();
+    this.renderCalendar();
     this.renderBreakdown();
     this.renderSummary();
   },
@@ -109,18 +110,23 @@ const app = {
 
     // Hide all tab contents
     document.getElementById('tab-entries').classList.add('hidden');
+    document.getElementById('tab-calendar').classList.add('hidden');
     document.getElementById('tab-breakdown').classList.add('hidden');
     document.getElementById('tab-summary').classList.add('hidden');
 
     if (tabName === 'entries') {
       document.querySelectorAll('.tab')[0].classList.add('active');
       document.getElementById('tab-entries').classList.remove('hidden');
-    } else if (tabName === 'breakdown') {
+    } else if (tabName === 'calendar') {
       document.querySelectorAll('.tab')[1].classList.add('active');
+      document.getElementById('tab-calendar').classList.remove('hidden');
+      this.renderCalendar();
+    } else if (tabName === 'breakdown') {
+      document.querySelectorAll('.tab')[2].classList.add('active');
       document.getElementById('tab-breakdown').classList.remove('hidden');
       this.renderBreakdown();
     } else {
-      document.querySelectorAll('.tab')[2].classList.add('active');
+      document.querySelectorAll('.tab')[3].classList.add('active');
       document.getElementById('tab-summary').classList.remove('hidden');
       this.renderSummary();
     }
@@ -337,6 +343,7 @@ const app = {
   changeMonth() {
     this.currentMonth = document.getElementById('month-selector').value;
     this.renderEntries();
+    this.renderCalendar();
     this.renderBreakdown();
     this.renderSummary();
     this.renderClients(); // Update client cards too
@@ -544,6 +551,7 @@ const app = {
     await this.saveData();
     this.closeEntryModal();
     this.renderEntries();
+    this.renderCalendar();
     this.renderBreakdown();
     this.renderSummary();
     this.toast('Entry saved', 'success');
@@ -555,6 +563,7 @@ const app = {
     this.data.entries = this.data.entries.filter(e => e.id !== entryId);
     await this.saveData();
     this.renderEntries();
+    this.renderCalendar();
     this.renderBreakdown();
     this.renderSummary();
     this.toast('Entry deleted', 'success');
@@ -562,6 +571,94 @@ const app = {
 
   closeEntryModal() {
     document.getElementById('modal-entry').classList.add('hidden');
+  },
+
+  // ========== Calendar ==========
+
+  renderCalendar() {
+    const [year, month] = this.currentMonth.split('-').map(Number);
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get entries for this month grouped by date
+    const entriesByDate = {};
+    this.data.entries
+      .filter(e => e.clientId === this.currentClient.id && e.date.startsWith(this.currentMonth))
+      .forEach(e => {
+        if (!entriesByDate[e.date]) entriesByDate[e.date] = 0;
+        entriesByDate[e.date] += (e.hours || 0) + (e.travelHours || 0);
+      });
+
+    // Build calendar grid
+    const calendarBody = document.getElementById('calendar-body');
+    let html = '';
+
+    // Calculate starting day (Monday = 0, Sunday = 6)
+    let startDay = firstDay.getDay() - 1;
+    if (startDay < 0) startDay = 6; // Sunday becomes 6
+
+    // Previous month's trailing days
+    const prevMonth = new Date(year, month - 1, 0);
+    for (let i = startDay - 1; i >= 0; i--) {
+      const day = prevMonth.getDate() - i;
+      const dateStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const hours = entriesByDate[dateStr] || 0;
+      html += this.renderCalendarDay(day, dateStr, true, hours, today);
+    }
+
+    // Current month's days
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const hours = entriesByDate[dateStr] || 0;
+      html += this.renderCalendarDay(day, dateStr, false, hours, today);
+    }
+
+    // Next month's leading days (fill to complete the grid)
+    const endDay = lastDay.getDay() - 1;
+    const daysToAdd = endDay < 0 ? 0 : 6 - endDay;
+    for (let day = 1; day <= daysToAdd; day++) {
+      const nextMonth = new Date(year, month, day);
+      const dateStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      html += this.renderCalendarDay(day, dateStr, true, 0, today);
+    }
+
+    calendarBody.innerHTML = html;
+  },
+
+  renderCalendarDay(day, dateStr, isOtherMonth, hours, today) {
+    const classes = ['calendar-day'];
+    if (isOtherMonth) classes.push('other-month');
+    if (dateStr === today) classes.push('today');
+    if (hours > 0) classes.push('has-entries');
+
+    return `
+      <div class="${classes.join(' ')}" onclick="app.showAddEntryForDate('${dateStr}')">
+        <div class="calendar-day-number">${day}</div>
+        ${hours > 0 ? `<div class="calendar-day-hours">${hours}h</div>` : ''}
+      </div>
+    `;
+  },
+
+  showAddEntryForDate(dateStr) {
+    document.getElementById('entry-modal-title').textContent = 'New Entry';
+    document.getElementById('entry-id').value = '';
+    document.getElementById('entry-date').value = dateStr;
+    document.getElementById('entry-hours').value = '';
+    document.getElementById('entry-notes').value = '';
+    document.getElementById('entry-travel-hours').value = '';
+    document.getElementById('entry-miles').value = '';
+    document.getElementById('entry-expense').value = '';
+    document.getElementById('entry-extras').classList.add('hidden');
+    document.getElementById('extras-toggle-text').textContent = '+ Add travel/expenses';
+
+    // Populate activities
+    const select = document.getElementById('entry-activity');
+    select.innerHTML = this.currentClient.activities.map(a =>
+      `<option value="${a}">${a}</option>`
+    ).join('');
+
+    document.getElementById('modal-entry').classList.remove('hidden');
   },
 
   // ========== Breakdown & Summary ==========
