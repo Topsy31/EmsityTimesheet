@@ -245,10 +245,47 @@ Matches the proven approach from TimeCapture project. Provides cloud sync withou
 
 ---
 
+## Planned Improvements
+
+### 1. Hide/Unhide Clients
+- Add `hidden` boolean field to client data model
+- Hidden clients don't appear on landing page
+- Add "Unhide" dropdown in header to show hidden clients
+- Click hidden client in dropdown to unhide it
+- Add "Hide" option to client card or edit modal
+
+### 2. Persistent Entry Date with +/- Controls
+- Remember the date from the last entry created
+- When opening "New Entry", default to last used date (not today)
+- Add +1 day and -1 day buttons next to date picker
+- Makes it easy to log entries for consecutive days
+
+### 3. Activity Breakdown Tab
+- New tab alongside "Entries" and "Summary"
+- Shows hours per activity for the selected month
+- Table format: Activity | Hours | Percentage
+- Helps identify where time is being spent
+
+### 4. Desktop/Start Menu Shortcut
+- Package app as portable .exe using electron-builder
+- Create Windows shortcut for desktop/Start Menu
+- Double-click to launch without terminal
+- Use Emsity logo as icon
+
+### 5. Import from Selectable Folder
+- File picker dialog to choose import folder (not hardcoded)
+- Scan folder for Excel files (.xlsx, .xls)
+- Display list of found files with import button
+- Parse Excel structure and map to app data model
+- Support importing multiple months of historical data
+
+---
+
 ## Next Steps
 
-1. Confirm requirements and answer open questions
-2. Finalise tech stack decision
-3. Build MVP with core entry and summary features
-4. Add sync/export functionality
-5. Polish UI and add nice-to-have features
+1. ~~Confirm requirements and answer open questions~~
+2. ~~Finalise tech stack decision~~
+3. ~~Build MVP with core entry and summary features~~
+4. ~~Add sync/export functionality~~
+5. Implement planned improvements
+6. Package as .exe and create desktop shortcut

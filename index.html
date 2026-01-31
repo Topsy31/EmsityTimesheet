@@ -21,9 +21,17 @@
   <main class="container">
     <!-- Client Selector View -->
     <div id="view-clients">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
         <h2>Clients</h2>
-        <button class="btn btn-primary" onclick="app.showAddClient()">+ Add Client</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div class="dropdown" id="unhide-dropdown">
+            <button class="btn btn-secondary btn-small" onclick="app.toggleUnhideDropdown()">Unhide ▼</button>
+            <div class="dropdown-menu hidden" id="unhide-menu">
+              <!-- Hidden clients listed here -->
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="app.showAddClient()">+ Add Client</button>
+        </div>
       </div>
       <div id="client-grid" class="client-grid">
         <!-- Client cards rendered here -->
@@ -44,6 +52,7 @@
 
       <div class="tabs mt-4">
         <button class="tab active" onclick="app.showTab('entries')">Entries</button>
+        <button class="tab" onclick="app.showTab('breakdown')">Breakdown</button>
         <button class="tab" onclick="app.showTab('summary')">Summary</button>
       </div>
 
@@ -52,6 +61,25 @@
         <div id="entry-list" class="entry-list">
           <!-- Entries rendered here -->
         </div>
+      </div>
+
+      <!-- Breakdown Tab -->
+      <div id="tab-breakdown" class="hidden">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Activity</th>
+              <th class="amount">Hours</th>
+              <th class="amount">Travel</th>
+              <th class="amount">Expenses</th>
+              <th class="amount">Miles</th>
+              <th class="amount">%</th>
+            </tr>
+          </thead>
+          <tbody id="breakdown-body">
+            <!-- Breakdown rows rendered here -->
+          </tbody>
+        </table>
       </div>
 
       <!-- Summary Tab -->
@@ -113,7 +141,16 @@
       </div>
 
       <div class="settings-section">
-        <h3>Available Files</h3>
+        <h3>Select Folder</h3>
+        <p style="color: var(--text-light); font-size: 14px; margin-bottom: 12px;">
+          Choose a folder containing Excel timesheet files to import.
+        </p>
+        <button class="btn btn-primary" onclick="app.selectImportFolder()">Browse for Folder...</button>
+        <p id="import-folder-path" style="color: var(--text-light); font-size: 14px; margin-top: 8px;"></p>
+      </div>
+
+      <div class="settings-section" id="import-files-section" style="display: none;">
+        <h3>Excel Files Found</h3>
         <div id="import-file-list">
           <!-- Excel files listed here -->
         </div>
@@ -134,7 +171,11 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Date</label>
-            <input type="date" class="form-input" id="entry-date">
+            <div class="date-input-group">
+              <button type="button" class="btn btn-secondary btn-small date-adj-btn" onclick="app.adjustEntryDate(-1)">−</button>
+              <input type="date" class="form-input" id="entry-date">
+              <button type="button" class="btn btn-secondary btn-small date-adj-btn" onclick="app.adjustEntryDate(1)">+</button>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Hours</label>

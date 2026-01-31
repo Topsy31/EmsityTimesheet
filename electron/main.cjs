@@ -2,7 +2,7 @@
  * Electron Main Process for Emsity Timesheet
  */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -129,7 +129,7 @@ ipcMain.handle('save-data', async (event, data) => {
   }
 });
 
-// Get list of Excel files for import
+// Get list of Excel files for import from default path
 ipcMain.handle('get-excel-files', async () => {
   try {
     if (!fs.existsSync(DATA_PATH)) {
@@ -144,10 +144,36 @@ ipcMain.handle('get-excel-files', async () => {
   }
 });
 
-// Read Excel file for import
-ipcMain.handle('read-excel-file', async (event, filename) => {
+// Open folder picker dialog and return Excel files
+ipcMain.handle('select-import-folder', async () => {
   try {
-    const filePath = path.join(DATA_PATH, filename);
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select folder containing Excel timesheets'
+    });
+
+    if (result.canceled || !result.filePaths.length) {
+      return { canceled: true };
+    }
+
+    const folderPath = result.filePaths[0];
+    const files = fs.readdirSync(folderPath);
+    const excelFiles = files.filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
+
+    return {
+      canceled: false,
+      folderPath,
+      files: excelFiles
+    };
+  } catch (error) {
+    console.error('Error selecting import folder:', error);
+    throw error;
+  }
+});
+
+// Read Excel file from specified path
+ipcMain.handle('read-excel-file', async (event, filePath) => {
+  try {
     const buffer = fs.readFileSync(filePath);
     return buffer;
   } catch (error) {

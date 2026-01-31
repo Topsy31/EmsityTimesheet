@@ -5,6 +5,7 @@ const app = {
   currentClient: null,
   currentMonth: null, // Format: 'YYYY-MM'
   editingActivities: [],
+  lastEntryDate: null, // Persisted date from last entry
 
   // Initialize the app
   async init() {
@@ -14,6 +15,14 @@ const app = {
       this.renderClients();
       this.populateMonthSelector();
       document.getElementById('settings-mileage-rate').value = this.data.settings?.mileageRate || 0.45;
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('unhide-dropdown');
+        if (dropdown && !dropdown.contains(e.target)) {
+          document.getElementById('unhide-menu').classList.add('hidden');
+        }
+      });
     } catch (error) {
       this.toast('Error loading data: ' + error.message, 'error');
       console.error(error);
@@ -75,6 +84,7 @@ const app = {
 
     document.getElementById('timesheet-client-name').textContent = this.currentClient.name;
     this.renderEntries();
+    this.renderBreakdown();
     this.renderSummary();
   },
 
@@ -97,15 +107,20 @@ const app = {
     // Remove active from all tabs
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 
-    // Hide both tab contents
+    // Hide all tab contents
     document.getElementById('tab-entries').classList.add('hidden');
+    document.getElementById('tab-breakdown').classList.add('hidden');
     document.getElementById('tab-summary').classList.add('hidden');
 
     if (tabName === 'entries') {
       document.querySelectorAll('.tab')[0].classList.add('active');
       document.getElementById('tab-entries').classList.remove('hidden');
-    } else {
+    } else if (tabName === 'breakdown') {
       document.querySelectorAll('.tab')[1].classList.add('active');
+      document.getElementById('tab-breakdown').classList.remove('hidden');
+      this.renderBreakdown();
+    } else {
+      document.querySelectorAll('.tab')[2].classList.add('active');
       document.getElementById('tab-summary').classList.remove('hidden');
       this.renderSummary();
     }
@@ -115,18 +130,21 @@ const app = {
 
   renderClients() {
     const grid = document.getElementById('client-grid');
+    const visibleClients = this.data.clients.filter(c => !c.hidden);
 
-    if (!this.data.clients.length) {
+    if (!visibleClients.length) {
+      const hasHidden = this.data.clients.some(c => c.hidden);
       grid.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">📋</div>
-          <div class="empty-state-text">No clients yet. Add your first client to get started.</div>
+          <div class="empty-state-text">${hasHidden ? 'All clients are hidden. Use "Unhide" to show them.' : 'No clients yet. Add your first client to get started.'}</div>
         </div>
       `;
+      this.renderUnhideDropdown();
       return;
     }
 
-    grid.innerHTML = this.data.clients.map(client => {
+    grid.innerHTML = visibleClients.map(client => {
       const monthHours = this.getClientMonthHours(client.id, this.currentMonth);
       const monthValue = monthHours * client.rate;
 
@@ -138,10 +156,58 @@ const app = {
           <div class="client-card-hours">
             ${this.formatMonth(this.currentMonth)}: ${monthHours}h = £${monthValue.toFixed(2)}
           </div>
-          <button class="btn btn-small btn-secondary mt-4" onclick="event.stopPropagation(); app.editClient('${client.id}')">Edit</button>
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); app.editClient('${client.id}')">Edit</button>
+            <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); app.hideClient('${client.id}')">Hide</button>
+          </div>
         </div>
       `;
     }).join('');
+
+    this.renderUnhideDropdown();
+  },
+
+  renderUnhideDropdown() {
+    const menu = document.getElementById('unhide-menu');
+    const hiddenClients = this.data.clients.filter(c => c.hidden);
+
+    if (!hiddenClients.length) {
+      menu.innerHTML = '<div class="dropdown-empty">No hidden clients</div>';
+      return;
+    }
+
+    menu.innerHTML = hiddenClients.map(client => `
+      <button class="dropdown-item" onclick="app.unhideClient('${client.id}')">${client.name}</button>
+    `).join('');
+  },
+
+  toggleUnhideDropdown() {
+    const menu = document.getElementById('unhide-menu');
+    menu.classList.toggle('hidden');
+  },
+
+  async hideClient(clientId) {
+    const client = this.data.clients.find(c => c.id === clientId);
+    if (client) {
+      client.hidden = true;
+      await this.saveData();
+      this.renderClients();
+      this.toast(`${client.name} hidden`, 'success');
+    }
+    // Close dropdown if open
+    document.getElementById('unhide-menu').classList.add('hidden');
+  },
+
+  async unhideClient(clientId) {
+    const client = this.data.clients.find(c => c.id === clientId);
+    if (client) {
+      client.hidden = false;
+      await this.saveData();
+      this.renderClients();
+      this.toast(`${client.name} visible`, 'success');
+    }
+    // Close dropdown
+    document.getElementById('unhide-menu').classList.add('hidden');
   },
 
   getClientMonthHours(clientId, yearMonth) {
@@ -271,6 +337,7 @@ const app = {
   changeMonth() {
     this.currentMonth = document.getElementById('month-selector').value;
     this.renderEntries();
+    this.renderBreakdown();
     this.renderSummary();
     this.renderClients(); // Update client cards too
   },
@@ -345,7 +412,11 @@ const app = {
   showAddEntry() {
     document.getElementById('entry-modal-title').textContent = 'New Entry';
     document.getElementById('entry-id').value = '';
-    document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
+
+    // Use last entry date if available, otherwise today
+    const dateToUse = this.lastEntryDate || new Date().toISOString().split('T')[0];
+    document.getElementById('entry-date').value = dateToUse;
+
     document.getElementById('entry-hours').value = '';
     document.getElementById('entry-notes').value = '';
     document.getElementById('entry-travel-hours').value = '';
@@ -361,6 +432,14 @@ const app = {
     ).join('');
 
     document.getElementById('modal-entry').classList.remove('hidden');
+  },
+
+  // Date increment/decrement for entry form
+  adjustEntryDate(days) {
+    const dateInput = document.getElementById('entry-date');
+    const currentDate = new Date(dateInput.value);
+    currentDate.setDate(currentDate.getDate() + days);
+    dateInput.value = currentDate.toISOString().split('T')[0];
   },
 
   editEntry(entryId) {
@@ -459,9 +538,14 @@ const app = {
       });
     }
 
+    // Remember this date for next entry
+    this.lastEntryDate = date;
+
     await this.saveData();
     this.closeEntryModal();
     this.renderEntries();
+    this.renderBreakdown();
+    this.renderSummary();
     this.toast('Entry saved', 'success');
   },
 
@@ -471,6 +555,8 @@ const app = {
     this.data.entries = this.data.entries.filter(e => e.id !== entryId);
     await this.saveData();
     this.renderEntries();
+    this.renderBreakdown();
+    this.renderSummary();
     this.toast('Entry deleted', 'success');
   },
 
@@ -478,7 +564,71 @@ const app = {
     document.getElementById('modal-entry').classList.add('hidden');
   },
 
-  // ========== Summary & Export ==========
+  // ========== Breakdown & Summary ==========
+
+  renderBreakdown() {
+    const entries = this.data.entries.filter(
+      e => e.clientId === this.currentClient.id && e.date.startsWith(this.currentMonth)
+    );
+
+    // Group by activity with all fields
+    const activityData = {};
+    entries.forEach(e => {
+      const activity = e.activity || 'Unspecified';
+      if (!activityData[activity]) {
+        activityData[activity] = { hours: 0, travelHours: 0, expenses: 0, miles: 0 };
+      }
+      activityData[activity].hours += (e.hours || 0);
+      activityData[activity].travelHours += (e.travelHours || 0);
+      activityData[activity].expenses += (e.expenseValue || 0);
+      activityData[activity].miles += (e.miles || 0);
+    });
+
+    const totalHours = Object.values(activityData).reduce((sum, d) => sum + d.hours, 0);
+    const totalTravel = Object.values(activityData).reduce((sum, d) => sum + d.travelHours, 0);
+    const totalExpenses = Object.values(activityData).reduce((sum, d) => sum + d.expenses, 0);
+    const totalMiles = Object.values(activityData).reduce((sum, d) => sum + d.miles, 0);
+
+    const tbody = document.getElementById('breakdown-body');
+
+    if (totalHours === 0 && totalTravel === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-light); padding: 20px;">
+            No entries for ${this.formatMonth(this.currentMonth)}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    // Sort by hours descending
+    const sortedActivities = Object.entries(activityData)
+      .sort((a, b) => b[1].hours - a[1].hours);
+
+    tbody.innerHTML = sortedActivities.map(([activity, data]) => {
+      const percentage = totalHours > 0 ? ((data.hours / totalHours) * 100).toFixed(1) : '0.0';
+      return `
+        <tr>
+          <td>${activity}</td>
+          <td class="amount">${data.hours}h</td>
+          <td class="amount">${data.travelHours > 0 ? data.travelHours + 'h' : '—'}</td>
+          <td class="amount">${data.expenses > 0 ? '£' + data.expenses.toFixed(2) : '—'}</td>
+          <td class="amount">${data.miles > 0 ? data.miles + ' mi' : '—'}</td>
+          <td class="amount">${percentage}%</td>
+        </tr>
+      `;
+    }).join('') + `
+      <tr class="total-row">
+        <td><strong>Total</strong></td>
+        <td class="amount"><strong>${totalHours}h</strong></td>
+        <td class="amount"><strong>${totalTravel > 0 ? totalTravel + 'h' : '—'}</strong></td>
+        <td class="amount"><strong>${totalExpenses > 0 ? '£' + totalExpenses.toFixed(2) : '—'}</strong></td>
+        <td class="amount"><strong>${totalMiles > 0 ? totalMiles + ' mi' : '—'}</strong></td>
+        <td class="amount"><strong>100%</strong></td>
+      </tr>
+    `;
+  },
 
   renderSummary() {
     const entries = this.data.entries.filter(
@@ -658,30 +808,145 @@ const app = {
 
   // ========== Import ==========
 
-  async loadExcelFiles() {
-    try {
-      const files = await window.api.getExcelFiles();
-      const container = document.getElementById('import-file-list');
+  importFolderPath: null,
 
-      if (!files.length) {
-        container.innerHTML = '<p style="color: var(--text-light);">No Excel files found in the data folder.</p>';
+  async loadExcelFiles() {
+    // Reset the import view
+    document.getElementById('import-folder-path').textContent = '';
+    document.getElementById('import-files-section').style.display = 'none';
+  },
+
+  async selectImportFolder() {
+    try {
+      const result = await window.api.selectImportFolder();
+
+      if (result.canceled) {
         return;
       }
 
-      container.innerHTML = files.map(f => `
+      this.importFolderPath = result.folderPath;
+      document.getElementById('import-folder-path').textContent = `Selected: ${result.folderPath}`;
+
+      const container = document.getElementById('import-file-list');
+      const section = document.getElementById('import-files-section');
+
+      if (!result.files.length) {
+        container.innerHTML = '<p style="color: var(--text-light);">No Excel files found in this folder.</p>';
+        section.style.display = 'block';
+        return;
+      }
+
+      container.innerHTML = result.files.map(f => `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--grey-bg);">
           <span>${f}</span>
-          <button class="btn btn-small btn-primary" onclick="app.importExcelFile('${f}')">Import</button>
+          <button class="btn btn-small btn-primary" onclick="app.importExcelFile('${f.replace(/'/g, "\\'")}')">Import</button>
         </div>
       `).join('');
+
+      section.style.display = 'block';
     } catch (error) {
-      this.toast('Error loading files: ' + error.message, 'error');
+      this.toast('Error selecting folder: ' + error.message, 'error');
     }
   },
 
   async importExcelFile(filename) {
-    this.toast('Import feature coming soon...', 'info');
-    // TODO: Implement Excel import using xlsx library
+    if (!this.importFolderPath) {
+      this.toast('Please select a folder first', 'error');
+      return;
+    }
+
+    const filePath = this.importFolderPath + '\\' + filename;
+
+    try {
+      this.toast('Importing ' + filename + '...', 'info');
+
+      const buffer = await window.api.readExcelFile(filePath);
+      const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+
+      const workbook = XLSX.read(buffer, { type: 'array' });
+
+      // Parse the workbook - look for weekly sheets
+      let importedCount = 0;
+      const weekSheets = workbook.SheetNames.filter(name =>
+        name.toLowerCase().includes('week') || name.match(/^week\d+$/i)
+      );
+
+      for (const sheetName of weekSheets) {
+        const sheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Skip header row, process data rows
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          if (!row || !row[0]) continue; // Skip empty rows
+
+          // Expected columns: Date, Client, Activity, Time Travelling, Time Working, Expense Type, Expense Value, Miles, Notes
+          const dateValue = row[0];
+          const clientName = row[1];
+          const activity = row[2];
+          const travelHours = parseFloat(row[3]) || 0;
+          const hours = parseFloat(row[4]) || 0;
+          const expenseValue = parseFloat(row[6]) || 0;
+          const miles = parseInt(row[7]) || 0;
+          const notes = row[8] || '';
+
+          if (!hours && !travelHours) continue; // Skip rows with no time
+
+          // Find or skip client
+          const client = this.data.clients.find(c =>
+            c.name.toLowerCase() === (clientName || '').toLowerCase()
+          );
+          if (!client) continue;
+
+          // Parse date
+          let date;
+          if (typeof dateValue === 'number') {
+            // Excel date serial number
+            const excelEpoch = new Date(1899, 11, 30);
+            date = new Date(excelEpoch.getTime() + dateValue * 86400000);
+          } else if (dateValue instanceof Date) {
+            date = dateValue;
+          } else {
+            continue; // Can't parse date
+          }
+
+          const dateStr = date.toISOString().split('T')[0];
+
+          // Check if entry already exists (same client, date, activity, hours)
+          const exists = this.data.entries.some(e =>
+            e.clientId === client.id &&
+            e.date === dateStr &&
+            e.activity === activity &&
+            e.hours === hours
+          );
+
+          if (!exists) {
+            this.data.entries.push({
+              id: this.generateId(),
+              clientId: client.id,
+              date: dateStr,
+              activity: activity || client.activities[0] || 'Consulting',
+              hours,
+              travelHours,
+              expenseValue,
+              miles,
+              notes
+            });
+            importedCount++;
+          }
+        }
+      }
+
+      if (importedCount > 0) {
+        await this.saveData();
+        this.toast(`Imported ${importedCount} entries from ${filename}`, 'success');
+      } else {
+        this.toast('No new entries found to import', 'info');
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      this.toast('Import failed: ' + error.message, 'error');
+    }
   },
 
   // ========== Utilities ==========

@@ -28,8 +28,16 @@
     },
     "win": {
       "target": "portable",
-      "icon": "logo.png"
+      "icon": "icon.png",
+      "signAndEditExecutable": false
     },
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "logo.png"
+    ],
     "portable": {
       "artifactName": "Timesheet.exe"
     }

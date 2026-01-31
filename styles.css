@@ -311,6 +311,60 @@ body {
   gap: 8px;
 }
 
+/* Dropdown */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  z-index: 100;
+  margin-top: 4px;
+}
+
+.dropdown-menu.hidden {
+  display: none;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-dark);
+}
+
+.dropdown-item:hover {
+  background: var(--grey-bg);
+}
+
+.dropdown-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.dropdown-empty {
+  padding: 10px 16px;
+  color: var(--text-light);
+  font-size: 14px;
+  font-style: italic;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -416,6 +470,28 @@ body {
 
 .form-row .form-group {
   flex: 1;
+}
+
+/* Date Input with +/- buttons */
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-input-group .form-input {
+  flex: 1;
+}
+
+.date-adj-btn {
+  width: 32px;
+  height: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
 }
 
 /* Collapsible Section */
