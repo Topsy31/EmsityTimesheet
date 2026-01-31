@@ -55,6 +55,7 @@
         <button class="tab" onclick="app.showTab('calendar')">Calendar</button>
         <button class="tab" onclick="app.showTab('breakdown')">Breakdown</button>
         <button class="tab" onclick="app.showTab('summary')">Summary</button>
+        <button class="tab" onclick="app.showTab('invoice')">Invoice</button>
       </div>
 
       <!-- Entries Tab -->
@@ -118,6 +119,20 @@
         <div class="summary-actions mt-4">
           <button class="btn btn-primary" onclick="app.exportCSV()">Export CSV</button>
           <button class="btn btn-primary" onclick="app.exportPDF()">Export PDF</button>
+        </div>
+      </div>
+
+      <!-- Invoice Tab -->
+      <div id="tab-invoice" class="hidden">
+        <div class="invoice-section">
+          <h3>Invoice Support Text</h3>
+          <p style="color: var(--text-light); font-size: 14px; margin-bottom: 12px;">
+            Enter supporting text to include with invoices for this client.
+          </p>
+          <div class="form-group">
+            <textarea class="form-textarea invoice-textarea" id="invoice-support-text" placeholder="Enter invoice support text..."></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="app.saveInvoiceText()">Save</button>
         </div>
       </div>
 

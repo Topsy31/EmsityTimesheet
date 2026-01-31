@@ -113,6 +113,7 @@ const app = {
     document.getElementById('tab-calendar').classList.add('hidden');
     document.getElementById('tab-breakdown').classList.add('hidden');
     document.getElementById('tab-summary').classList.add('hidden');
+    document.getElementById('tab-invoice').classList.add('hidden');
 
     if (tabName === 'entries') {
       document.querySelectorAll('.tab')[0].classList.add('active');
@@ -125,10 +126,14 @@ const app = {
       document.querySelectorAll('.tab')[2].classList.add('active');
       document.getElementById('tab-breakdown').classList.remove('hidden');
       this.renderBreakdown();
-    } else {
+    } else if (tabName === 'summary') {
       document.querySelectorAll('.tab')[3].classList.add('active');
       document.getElementById('tab-summary').classList.remove('hidden');
       this.renderSummary();
+    } else if (tabName === 'invoice') {
+      document.querySelectorAll('.tab')[4].classList.add('active');
+      document.getElementById('tab-invoice').classList.remove('hidden');
+      this.renderInvoiceTab();
     }
   },
 
@@ -889,6 +894,20 @@ const app = {
     } catch (error) {
       this.toast('Export failed: ' + error.message, 'error');
     }
+  },
+
+  // ========== Invoice ==========
+
+  renderInvoiceTab() {
+    const textarea = document.getElementById('invoice-support-text');
+    textarea.value = this.currentClient.invoiceText || '';
+  },
+
+  async saveInvoiceText() {
+    const text = document.getElementById('invoice-support-text').value;
+    this.currentClient.invoiceText = text;
+    await this.saveData();
+    this.toast('Invoice text saved', 'success');
   },
 
   // ========== Settings ==========
