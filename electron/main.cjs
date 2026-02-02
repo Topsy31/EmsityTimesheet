@@ -2,7 +2,7 @@
  * Electron Main Process for Emsity Timesheet
  */
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, globalShortcut, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -11,6 +11,11 @@ const DATA_PATH = 'E:\\Emsity OneDrive\\OneDrive - emsity.com\\Emsity\\Accounts\
 const DATA_FILE = path.join(DATA_PATH, 'timesheet-data.json');
 
 let mainWindow = null;
+let quickAddWindow = null;
+let tray = null;
+
+// Check if started with --hidden flag (for startup)
+const startHidden = process.argv.includes('--hidden');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -19,6 +24,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'Emsity Timesheet',
+    icon: path.join(__dirname, '..', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -34,9 +40,19 @@ function createWindow() {
   // Load the app
   mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
 
-  // Show when ready
+  // Show when ready (unless started hidden)
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!startHidden) {
+      mainWindow.show();
+    }
+  });
+
+  // Minimize to tray instead of closing
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -44,9 +60,95 @@ function createWindow() {
   });
 }
 
+function createQuickAddWindow() {
+  if (quickAddWindow) {
+    quickAddWindow.focus();
+    return;
+  }
+
+  quickAddWindow = new BrowserWindow({
+    width: 400,
+    height: 460,
+    resizable: false,
+    frame: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    title: 'Quick Add Entry',
+    icon: path.join(__dirname, '..', 'icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
+    },
+    backgroundColor: '#A8C5E2',
+  });
+
+  quickAddWindow.loadFile(path.join(__dirname, '..', 'quick-add.html'));
+
+  quickAddWindow.on('closed', () => {
+    quickAddWindow = null;
+  });
+
+  quickAddWindow.on('blur', () => {
+    // Optional: close when losing focus
+    // quickAddWindow.close();
+  });
+}
+
+function createTray() {
+  const iconPath = path.join(__dirname, '..', 'icon.png');
+  const icon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon.resize({ width: 16, height: 16 }));
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Quick Add (Ctrl+Shift+T)',
+      click: () => createQuickAddWindow()
+    },
+    {
+      label: 'Open Timesheet',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createWindow();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        app.isQuitting = true;
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setToolTip('Emsity Timesheet');
+  tray.setContextMenu(contextMenu);
+
+  // Double-click to open main window
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
+}
+
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
+  createTray();
+
+  // Register global shortcut for Quick Add
+  globalShortcut.register('CommandOrControl+Shift+T', () => {
+    createQuickAddWindow();
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -55,10 +157,17 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('will-quit', () => {
+  // Unregister all shortcuts
+  globalShortcut.unregisterAll();
+});
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+  // Don't quit on macOS
+  if (process.platform === 'darwin') {
+    return;
   }
+  // On Windows, keep running in tray
 });
 
 // IPC Handlers for file operations
@@ -204,6 +313,46 @@ ipcMain.handle('export-pdf', async (event, { filename, content }) => {
     console.error('Error exporting PDF:', error);
     throw error;
   }
+});
+
+// Quick Add specific handlers
+ipcMain.handle('close-quick-add', () => {
+  if (quickAddWindow) {
+    quickAddWindow.close();
+  }
+});
+
+ipcMain.handle('open-main-window', () => {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createWindow();
+  }
+  if (quickAddWindow) {
+    quickAddWindow.close();
+  }
+});
+
+ipcMain.handle('notify-main-window', () => {
+  // Tell main window to refresh data
+  if (mainWindow) {
+    mainWindow.webContents.send('refresh-data');
+  }
+});
+
+// Startup settings
+ipcMain.handle('get-start-at-login', () => {
+  const settings = app.getLoginItemSettings();
+  return settings.openAtLogin;
+});
+
+ipcMain.handle('set-start-at-login', (event, enabled) => {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    args: ['--hidden']
+  });
+  return { success: true };
 });
 
 // Handle uncaught errors

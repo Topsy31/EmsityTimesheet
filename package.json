@@ -34,9 +34,11 @@
     "files": [
       "electron/**/*",
       "index.html",
+      "quick-add.html",
       "renderer.js",
       "styles.css",
-      "logo.png"
+      "logo.png",
+      "icon.png"
     ],
     "portable": {
       "artifactName": "Timesheet.exe"

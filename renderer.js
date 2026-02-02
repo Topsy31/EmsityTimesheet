@@ -94,6 +94,7 @@ const app = {
     document.getElementById('view-timesheet').classList.add('hidden');
     document.getElementById('view-settings').classList.remove('hidden');
     document.getElementById('view-import').classList.add('hidden');
+    this.loadStartAtLoginSetting();
   },
 
   showImport() {
@@ -922,6 +923,17 @@ const app = {
     }
   },
 
+  async loadStartAtLoginSetting() {
+    const enabled = await window.api.getStartAtLogin();
+    document.getElementById('settings-start-at-login').checked = enabled;
+  },
+
+  async toggleStartAtLogin() {
+    const checkbox = document.getElementById('settings-start-at-login');
+    await window.api.setStartAtLogin(checkbox.checked);
+    this.toast(checkbox.checked ? 'Will start at login' : 'Will not start at login', 'success');
+  },
+
   // ========== Import ==========
 
   importFolderPath: null,
@@ -1074,3 +1086,9 @@ const app = {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => app.init());
+
+// Listen for refresh events from Quick Add window
+window.api.onRefreshData(() => {
+  app.data = null;
+  app.init();
+});

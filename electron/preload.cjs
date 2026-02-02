@@ -21,5 +21,17 @@ contextBridge.exposeInMainWorld('api', {
   exportCSV: (filename, content) => ipcRenderer.invoke('export-csv', { filename, content }),
 
   // Export to PDF
-  exportPDF: (filename, content) => ipcRenderer.invoke('export-pdf', { filename, content })
+  exportPDF: (filename, content) => ipcRenderer.invoke('export-pdf', { filename, content }),
+
+  // Quick Add window controls
+  closeQuickAdd: () => ipcRenderer.invoke('close-quick-add'),
+  openMainWindow: () => ipcRenderer.invoke('open-main-window'),
+  notifyMainWindow: () => ipcRenderer.invoke('notify-main-window'),
+
+  // Listen for refresh events from main process
+  onRefreshData: (callback) => ipcRenderer.on('refresh-data', callback),
+
+  // Startup settings
+  getStartAtLogin: () => ipcRenderer.invoke('get-start-at-login'),
+  setStartAtLogin: (enabled) => ipcRenderer.invoke('set-start-at-login', enabled)
 });
