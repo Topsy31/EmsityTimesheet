@@ -22,6 +22,16 @@ npm run build
 npm run build:installer
 ```
 
+## Development Workflow
+
+**Important:** The app is launched from a desktop shortcut pointing to the built executable, not via `npm start`.
+
+After making any code changes:
+1. Run `npm run build` to rebuild the portable .exe
+2. Test by launching from the desktop icon
+
+The desktop shortcut runs the built version in `dist/`, so changes to source files won't be visible until rebuilt.
+
 ## Data Location
 `E:\Emsity OneDrive\OneDrive - emsity.com\Emsity\Accounts\Working Records\timesheet-data.json`
 

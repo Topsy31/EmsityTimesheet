@@ -138,6 +138,26 @@ const app = {
     }
   },
 
+  // Refresh entries from file (for use after quick-add or external changes)
+  async refreshEntries() {
+    try {
+      this.data = await window.api.loadData();
+      if (this.currentClient) {
+        // Re-fetch current client in case it changed
+        this.currentClient = this.data.clients.find(c => c.id === this.currentClient.id);
+        this.renderEntries();
+        this.renderCalendar();
+        this.renderBreakdown();
+        this.renderSummary();
+        this.updateTotalFooter();
+        this.toast('Entries refreshed', 'success');
+      }
+    } catch (error) {
+      this.toast('Error refreshing: ' + error.message, 'error');
+      console.error(error);
+    }
+  },
+
   // ========== Client Management ==========
 
   renderClients() {
